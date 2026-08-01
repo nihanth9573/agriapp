@@ -1,12 +1,10 @@
 services:
   - type: web
-    name: agrismart-esp32-backend
+    name: agrismart-backend
     env: node
     plan: free
     buildCommand: npm install
     startCommand: node server.js
     envVars:
-      - key: PORT
-        value: 10000
       - key: NODE_ENV
         value: production
