@@ -10,6 +10,18 @@ app.use(express.json());
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
+// In-Memory User Database
+let users = {
+  "farmer@agri.com": {
+    id: "USER_01",
+    name: "John Farmer",
+    email: "farmer@agri.com",
+    password: "password123",
+    farmName: "Green Valley Organics",
+    token: "token_farmer_secret_123"
+  }
+};
+
 // Store latest state of ESP32 Nodes
 let fieldNodes = {
   "ESP32_NODE_01": {
@@ -20,11 +32,11 @@ let fieldNodes = {
     battery: 92,
     rssi: -65,
     soilMoisture: 38,       // %
-    soilMoistureDeep: 44,   // % (30cm depth)
-    soilTemp: 22.4,         // °C (DS18B20)
-    airTemp: 27.8,          // °C (DHT22)
-    humidity: 62,           // % (DHT22)
-    lightLux: 48500,        // Lux (BH1750)
+    soilMoistureDeep: 44,   // %
+    soilTemp: 22.4,         // °C
+    airTemp: 27.8,          // °C
+    humidity: 62,           // %
+    lightLux: 48500,        // Lux
     soilEc: 1.4,            // dS/m
     leafWetness: 12,        // %
     flowRate: 0,            // L/min
@@ -80,7 +92,7 @@ let fieldNodes = {
   }
 };
 
-// Broadcast payload to all connected mobile clients
+// Broadcast payload to connected WebSocket clients
 function broadcast(data) {
   const payload = JSON.stringify(data);
   wss.clients.forEach((client) => {
@@ -90,7 +102,76 @@ function broadcast(data) {
   });
 }
 
-// 1. ESP32 HTTP POST Endpoint: ESP32 sends telemetry here
+// --- AUTHENTICATION ENDPOINTS ---
+
+// 1. User Registration
+app.post('/api/auth/register', (req, res) => {
+  const { name, email, password, farmName } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  if (users[email]) {
+    return res.status(400).json({ error: "Account with this email already exists" });
+  }
+
+  const token = `token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const newUser = {
+    id: `USER_${Date.now()}`,
+    name: name || "Farmer",
+    email,
+    password,
+    farmName: farmName || "My Smart Farm",
+    token
+  };
+
+  users[email] = newUser;
+  console.log(`[Auth] Registered new user: ${email}`);
+
+  return res.json({
+    success: true,
+    token,
+    user: { id: newUser.id, name: newUser.name, email: newUser.email, farmName: newUser.farmName }
+  });
+});
+
+// 2. User Login
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  const user = users[email];
+
+  if (!user || user.password !== password) {
+    return res.status(401).json({ error: "Invalid email or password" });
+  }
+
+  console.log(`[Auth] User logged in: ${email}`);
+  return res.json({
+    success: true,
+    token: user.token,
+    user: { id: user.id, name: user.name, email: user.email, farmName: user.farmName }
+  });
+});
+
+// 3. Get Current Profile
+app.get('/api/auth/me', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: "No token provided" });
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const user = Object.values(users).find(u => u.token === token);
+
+  if (!user) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+
+  return res.json({ user: { id: user.id, name: user.name, email: user.email, farmName: user.farmName } });
+});
+
+// --- SENSOR & TELEMETRY ENDPOINTS ---
+
+// ESP32 Telemetry POST Endpoint
 app.post('/api/telemetry', (req, res) => {
   const { nodeId, soilMoisture, soilTemp, airTemp, humidity, lightLux, soilEc, battery, pumpState } = req.body;
   
@@ -121,7 +202,6 @@ app.post('/api/telemetry', (req, res) => {
     lastSeen: new Date().toISOString()
   };
 
-  // Keep last 30 history points
   const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   updatedNode.history = [
     ...(existingNode.history || []).slice(-29),
@@ -137,19 +217,17 @@ app.post('/api/telemetry', (req, res) => {
 
   fieldNodes[nodeId] = updatedNode;
 
-  // Broadcast real-time update to phone apps
+  // Broadcast real-time update to Flutter & Web clients
   broadcast({ type: "ESP32_UPDATE", nodeId, node: updatedNode });
-
-  console.log(`[ESP32 Telemetry] Received from ${nodeId}: Moisture=${updatedNode.soilMoisture}% Temp=${updatedNode.soilTemp}°C`);
 
   return res.json({
     success: true,
     serverTime: new Date().toISOString(),
-    pumpCommand: updatedNode.pumpState // Send desired pump state back to ESP32
+    pumpCommand: updatedNode.pumpState
   });
 });
 
-// 2. Mobile App Remote Control Endpoint: Phone app toggles ESP32 relay pump
+// Mobile App Remote Pump Control Endpoint
 app.post('/api/pump/toggle', (req, res) => {
   const { nodeId, pumpState } = req.body;
   if (!fieldNodes[nodeId]) {
@@ -167,42 +245,25 @@ app.post('/api/pump/toggle', (req, res) => {
   return res.json({ success: true, nodeId, pumpState: fieldNodes[nodeId].pumpState });
 });
 
-// 3. Get all nodes
+// Get all nodes
 app.get('/api/nodes', (req, res) => {
   res.json({ nodes: fieldNodes });
 });
 
-// 4. Simulator tick generator (Simulates live sensors updating every 3 seconds if no physical ESP32 connected)
+// Real-Time Simulation Interval
 setInterval(() => {
   const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   Object.keys(fieldNodes).forEach((nodeId) => {
     const node = fieldNodes[nodeId];
-    
-    // Natural slight fluctuation
     const moistureDelta = node.pumpState ? 0.8 : -0.15;
     let newMoisture = Math.min(100, Math.max(10, parseFloat((node.soilMoisture + moistureDelta + (Math.random() * 0.4 - 0.2)).toFixed(1))));
-    let newSoilTemp = parseFloat((node.soilTemp + (Math.random() * 0.2 - 0.1)).toFixed(1));
-    let newAirTemp = parseFloat((node.airTemp + (Math.random() * 0.3 - 0.15)).toFixed(1));
-    let newHumidity = Math.min(100, Math.max(20, Math.round(node.humidity + (Math.random() * 2 - 1))));
-    let newLux = Math.max(0, Math.round(node.lightLux + (Math.random() * 400 - 200)));
-
-    // Auto-irrigation check
-    if (node.autoIrrigation) {
-      if (newMoisture < node.targetMoisture - 10 && !node.pumpState) {
-        node.pumpState = true;
-        node.flowRate = 12.8;
-      } else if (newMoisture >= node.targetMoisture + 10 && node.pumpState) {
-        node.pumpState = false;
-        node.flowRate = 0;
-      }
-    }
 
     node.soilMoisture = newMoisture;
-    node.soilTemp = newSoilTemp;
-    node.airTemp = newAirTemp;
-    node.humidity = newHumidity;
-    node.lightLux = newLux;
+    node.soilTemp = parseFloat((node.soilTemp + (Math.random() * 0.2 - 0.1)).toFixed(1));
+    node.airTemp = parseFloat((node.airTemp + (Math.random() * 0.3 - 0.15)).toFixed(1));
+    node.humidity = Math.min(100, Math.max(20, Math.round(node.humidity + (Math.random() * 2 - 1))));
+    node.lightLux = Math.max(0, Math.round(node.lightLux + (Math.random() * 400 - 200)));
     node.lastSeen = new Date().toISOString();
 
     const currentHistory = node.history || [];
@@ -211,10 +272,10 @@ setInterval(() => {
       {
         time: timeLabel,
         moisture: newMoisture,
-        temp: newSoilTemp,
-        airTemp: newAirTemp,
-        humidity: newHumidity,
-        lux: newLux
+        temp: node.soilTemp,
+        airTemp: node.airTemp,
+        humidity: node.humidity,
+        lux: node.lightLux
       }
     ];
   });
@@ -244,6 +305,5 @@ wss.on('connection', (ws) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`[AgriSmart ESP32 Server] Running on http://localhost:${PORT}`);
-  console.log(`[AgriSmart ESP32 Telemetry] Waiting for ESP32 POST requests at http://localhost:${PORT}/api/telemetry`);
+  console.log(`[AgriSmart ESP32 Auth Server] Running on http://localhost:${PORT}`);
 });
