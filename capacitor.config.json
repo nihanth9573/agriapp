@@ -1,0 +1,5 @@
+{
+  "appId": "com.agriapp.esp32",
+  "appName": "AgriSmart",
+  "webDir": "dist"
+}
