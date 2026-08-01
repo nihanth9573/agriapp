@@ -28,7 +28,7 @@
 // --- Wi-Fi & Server Configuration ---
 const char* WIFI_SSID     = "YOUR_WIFI_SSID";
 const char* WIFI_PASS     = "YOUR_WIFI_PASSWORD";
-const char* SERVER_URL    = "http://192.168.1.100:5000/api/telemetry"; // Replace with your computer's local IP address
+const char* SERVER_URL    = "https://agrismart-backend-dy6b.onrender.com/api/telemetry"; // Live 24/7 Cloud Telemetry Endpoint
 const char* NODE_ID       = "ESP32_NODE_01";
 
 // --- Pin Definitions ---

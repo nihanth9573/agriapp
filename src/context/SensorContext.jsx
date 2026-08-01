@@ -104,8 +104,7 @@ export const SensorProvider = ({ children }) => {
   useEffect(() => {
     let ws;
     const connectWS = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.hostname}:5000/ws`;
+      const wsUrl = `wss://agrismart-backend-dy6b.onrender.com/ws`;
       
       try {
         ws = new WebSocket(wsUrl);
