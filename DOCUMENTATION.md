@@ -2,62 +2,74 @@
 
 ---
 
-## ☁️ 24/7 Cloud Deployment via Render.com
+## 📱 Flutter Mobile Application (`d:\agriapp\flutter_app`)
 
-Deploying your backend to **Render.com** keeps your server running 24/7 in the cloud for **FREE**, without requiring your personal laptop/PC to be powered on.
+The platform includes a dedicated native **Flutter Mobile Application** built with **Dart, Provider, HTTP, WebSockets, and Material 3 design**.
 
 ```
-  ┌─────────────────────────┐               ┌─────────────────────────┐
-  │   ESP32 FIELD NODE      │               │   MOBILE PHONE APP /    │
-  │   (Field / Greenhouse)  │               │   ANDROID APK           │
-  └────────────┬────────────┘               └────────────┬────────────┘
-               │                                         │
-               │ HTTPS POST                              │ WSS WebSocket
-               ▼                                         ▼
-  ┌───────────────────────────────────────────────────────────────────┐
-  │                   RENDER.COM 24/7 CLOUD SERVER                    │
-  │            https://agrismart-esp32-backend.onrender.com           │
-  └───────────────────────────────────────────────────────────────────┘
+  ┌─────────────────────────────────────────────────────────────┐
+  │                 FLUTTER MOBILE APPLICATION                  │
+  │                  (d:\agriapp\flutter_app)                   │
+  │                                                             │
+  │  [Login / Register Screen] ──► JWT Auth Token Storage       │
+  │  [Dashboard Screen]        ──► Soil Moisture Gauge & Temp   │
+  │  [Remote Pump Controls]    ──► Authorized GPIO 26 Relay     │
+  └──────────────────────────────┬──────────────────────────────┘
+                                 │
+                 HTTPS REST API + WSS WebSocket
+                                 │
+                                 ▼
+  ┌─────────────────────────────────────────────────────────────┐
+  │         24/7 CLOUD TELEMETRY SERVER ON RENDER.COM           │
+  │            https://agrismart-backend-dy6b.onrender.com       │
+  └─────────────────────────────────────────────────────────────┘
 ```
 
-### Steps to Deploy to Render.com:
-
-1. **Create Free Render Account**: Sign up at [https://render.com](https://render.com).
-2. **Push Code to GitHub**:
-   - Create a repository on GitHub and push the code from `d:\agriapp`.
-3. **New Web Service on Render**:
-   - Click **New +** ➔ **Web Service** on Render.
-   - Connect your GitHub repository (`agriapp`).
-   - Render automatically detects [render.yaml](file:///d:/agriapp/render.yaml):
-     - **Build Command**: `npm install`
-     - **Start Command**: `node server.js`
-   - Click **Create Web Service**.
-4. **Copy your Live Cloud URL**:
-   - Render will give you a live URL, e.g.:
-     `https://agrismart-esp32-backend.onrender.com`
+### Flutter App File Structure:
+- `lib/main.dart`: Auth Wrapper & Routing.
+- `lib/screens/login_screen.dart`: Farmer authentication view (`farmer@agri.com` / `password123`).
+- `lib/screens/register_screen.dart`: Register new farm account.
+- `lib/screens/dashboard_screen.dart`: Real-time soil moisture gauge & microclimate metrics.
+- `lib/screens/controls_screen.dart`: Authenticated irrigation water pump relay switch.
+- `lib/services/`: `auth_service.dart` and `sensor_service.dart`.
+- `lib/providers/`: `auth_provider.dart` and `sensor_provider.dart`.
+- `run_flutter.bat`: 1-Click launcher script using `D:\flutter\bin`.
 
 ---
 
-## 🔌 Hardware Wiring & Pin Mapping
+## 🔐 User Authentication Endpoints (`server.js`)
 
-| Sensor / Module | ESP32 Pin | Signal Type | Description & Purpose |
-| :--- | :--- | :--- | :--- |
-| **Capacitive Soil Moisture v1.2** | `GPIO 34` | Analog Input (ADC1_CH6) | Measures volumetric soil water content |
-| **DS18B20 Soil Temp Probe** | `GPIO 4` | Digital Input (OneWire) | Measures soil temperature at root depth |
-| **DHT22 Air Temp & Humidity** | `GPIO 15` | Digital Input | Measures ambient temperature & relative humidity |
-| **BH1750 Light Sensor** | `GPIO 21` (SDA) / `GPIO 22` (SCL) | I2C Bus | Measures solar irradiance in Lux |
-| **Irrigation Relay Pump Switch** | `GPIO 26` | Digital Output | Sends 5V signal to trigger water pump ON/OFF |
-| **Battery Divider Pin** | `GPIO 35` | Analog Input (ADC) | Reads battery voltage level percentage |
+- `POST /api/auth/register`: Create a new farmer profile (`name`, `email`, `password`, `farmName`).
+- `POST /api/auth/login`: Authenticate email & password, returning bearer token.
+- `GET /api/auth/me`: Validate active session token.
+
+**Pre-configured Demo Credentials**:
+- **Email**: `farmer@agri.com`
+- **Password**: `password123`
 
 ---
 
-## 💻 Updated ESP32 Cloud Configuration
+## ☁️ 24/7 Cloud Backend Server
 
-When using Render, update `SERVER_URL` in `esp32_field_node.ino`:
+- **Render Live URL**: [`https://agrismart-backend-dy6b.onrender.com`](https://agrismart-backend-dy6b.onrender.com)
+- **ESP32 Telemetry Endpoint**: `https://agrismart-backend-dy6b.onrender.com/api/telemetry`
+- **WebSocket Live Stream**: `wss://agrismart-backend-dy6b.onrender.com/ws`
 
-```cpp
-// Replace with your live Render cloud URL
-const char* SERVER_URL = "https://agrismart-esp32-backend.onrender.com/api/telemetry";
-```
+---
 
-Now your ESP32 board in the field will send data to the cloud 24/7 over any Wi-Fi router or 4G LTE SIM module!
+## 🔌 Hardware Wiring & ESP32 Sketch
+
+- **Capacitive Soil Moisture v1.2**: `GPIO 34` (Analog ADC)
+- **DS18B20 Soil Temp Probe**: `GPIO 4` (Digital OneWire)
+- **DHT22 Air Temp & Humidity**: `GPIO 15` (Digital)
+- **Water Pump Relay Module**: `GPIO 26` (Digital Output)
+- **Arduino Sketch**: [esp32_field_node.ino](file:///d:/agriapp/esp32/esp32_field_node.ino)
+
+---
+
+## 🚀 How to Run the Flutter App
+
+1. Double-click **[run_flutter.bat](file:///d:/agriapp/flutter_app/run_flutter.bat)** inside `d:\agriapp\flutter_app`.
+2. Log in using the demo account:
+   - Email: `farmer@agri.com`
+   - Password: `password123`
