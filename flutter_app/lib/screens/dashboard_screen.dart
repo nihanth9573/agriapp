@@ -7,7 +7,7 @@ import 'controls_screen.dart';
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
-  @override:
+  @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final sensorProvider = Provider.of<SensorProvider>(context);

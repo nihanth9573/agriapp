@@ -5,7 +5,7 @@ import '../providers/auth_provider.dart';
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
-  @override:
+  @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
@@ -40,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  @override:
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF06140E),

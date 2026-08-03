@@ -12,7 +12,7 @@ void main() {
 class AgriSmartApp extends StatelessWidget {
   const AgriSmartApp({super.key});
 
-  @override:
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
@@ -39,7 +39,7 @@ class AgriSmartApp extends StatelessWidget {
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
-  @override:
+  @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     return authProvider.isAuthenticated

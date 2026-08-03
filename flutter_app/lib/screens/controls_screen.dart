@@ -5,7 +5,7 @@ import '../providers/sensor_provider.dart';
 class ControlsScreen extends StatelessWidget {
   const ControlsScreen({super.key});
 
-  @override:
+  @override
   Widget build(BuildContext context) {
     final sensorProvider = Provider.of<SensorProvider>(context);
     final activeNode = sensorProvider.activeNode;

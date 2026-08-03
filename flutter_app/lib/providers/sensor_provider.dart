@@ -63,7 +63,7 @@ class SensorProvider with ChangeNotifier {
     await SensorService.togglePump(nodeId, newState);
   }
 
-  @override:
+  @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
